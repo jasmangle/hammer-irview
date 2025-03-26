@@ -1,4 +1,5 @@
 
+from threading import Thread
 from PySide6.QtWidgets import QApplication
 
 from irv.ui import MainWindow
@@ -12,4 +13,5 @@ class IRVApp(QApplication):
 
     # Load the yaml files provided
     if len(args) > 1:
-      self.main.load_yamls(args[1:])
+      Thread(target=self.main.load_yamls, args=(args[1:],)).start()
+      # self.main.load_yamls(args[1:])

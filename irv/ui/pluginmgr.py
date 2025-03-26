@@ -59,8 +59,6 @@ class IRVBehavior:
       module.placement_constraints[constraint_obj.path] = constraint_obj
     else:
       return ('vlsi.inputs.placement_constraints', model, module, constraint)
-    
-  
 
 
   # Dictionary of key/tuple pairs in the following format:

@@ -8,7 +8,10 @@ from pathlib import Path
 import re
 import typing
 
-from PySide6 import QtCore
+from PySide6 import QtCore, QtWidgets
+
+from irv.ui.hierarchical.placement_constraints import ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
+from irv.ui.hierarchical.yml_loader import HammerYaml
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,13 +41,23 @@ class VerilogModule:
     self.file = file
     self.instances = {}
 
+    self.top_constraint = None
+    self.children = []
+    self.constraints = []
+
+  def add_constraint(self, constraint: ModuleConstraint):
+    constraint.module = self
+    self.constraints.append(constraint)
+    if isinstance(constraint, ModuleTopLevel):
+      self.top_constraint = constraint
+    if isinstance(constraint, ModuleHierarchical):
+      self.children.append()
+
   def __str__(self):
     return f'<{self.name} from {self.file}>'
   
   def __repr__(self):
     return f'<{self.name} from {self.file}>'
-
-  
 
 
 class VerilogModuleInstance:
@@ -87,8 +100,9 @@ class VerilogModuleHierarchy:
 
     # Modules of the form: {name: VerilogModule, ...}
     self.modules = OrderedDict()
+    self.scoped_hierarchy = OrderedDict()
 
-  def iter_files_in_path(directory: Path):
+  def iter_files_in_path(self, directory: Path):
     """
     Generator for retriving all .SV files recursively from a particular
     directory.
@@ -138,11 +152,10 @@ class VerilogModuleHierarchy:
         module_name, _, module_body = module_data
         module = VerilogModule(module_name, file)
         verilog_modules.append((module, module_body))
-        LOGGER.info(f"Found module '{module}'")
+        LOGGER.debug(f"Found module '{module}'")
     return verilog_modules
 
   def parse_module_instances(self, module: tuple[VerilogModule, str],
-                             parent_path: str
                              ) -> dict[str, VerilogModuleInstance]:
     """
     Gets all instances for a specific Verilog module.
@@ -156,29 +169,32 @@ class VerilogModuleHierarchy:
           objects.
     """
     vmodule, module_body = module
-    instances = re.findall(self.RE_MODULE_INSTANTIATION, module_body)
-    LOGGER.info(f'Found {len(instances)} instances in module {vmodule.name}')
+    insts = re.findall(self.RE_MODULE_INSTANTIATION, module_body)
+    LOGGER.debug(f'Found {len(insts)} instances in module {vmodule.name}')
 
     instances = {}
-    for instance in instances:
+    for instance in insts:
       inst_module_name, inst_name = instance
       # full_instance_path = '/'.join([parent_path, inst_name]) if parent_path else inst_name
       instances[inst_name] = inst_module_name
 
     return instances
 
-  def register_modules_from_directory(self, directory: Path):
+  def register_modules_from_directory(self, directory: Path, statusbar: typing.Union[QtWidgets.QStatusBar, None]):
     """
     Registers all .sv files as IRView VerilogModule objects for the current
     VerilogModuleHierarchy.
 
     Args:
         directory (Path): Path to .sv files.
+        statusbar (QStatusBar): Status bar to update with progress.
     """
+    directory = Path(directory)
     modules_found = []
 
     # Parse modules as a flat structure
     for vfile in self.iter_files_in_path(directory):
+      statusbar.showMessage(f"Parsing '{vfile}'")
       # Update our registry with the found verilog files.
       modules = self.parse_verilog_file(vfile)
       for module in modules:
@@ -186,16 +202,50 @@ class VerilogModuleHierarchy:
         self.modules[vmodule_obj.name] = vmodule_obj
         modules_found.append(module)
 
-    
+
     # All modules loaded from all files. Parse instance hierarchy
     for module_tpl in modules_found:
       vmodule_obj, module_body = module_tpl
+      statusbar.showMessage(f"Reading instances for module '{vmodule_obj.name}'")
       vmodule_obj.instances.update(self.parse_module_instances(module_tpl))
+
+  def register_constraints_in_yml(self, yml: HammerYaml, statusbar: typing.Union[QtWidgets.QStatusBar, None]):
+    """
+    Registers all constraints from a provided HAMMER YML file.
+
+    Args:
+        yml_file (HammerYaml): HammerYaml pre-parsed YAML object.
+    """
+    
+    constraints = yml.get_value('vlsi.inputs.placement_constraints')
+    num_constraints = len(constraints)
+    for i, constraint in enumerate(constraints):
+      statusbar.showMessage(f'[{yml.yml_file}] Deserializing placement constraint {i+1} of {num_constraints}')
+      constraint_obj = PlacementConstraintManager.deserialize(constraint, self)
+      constraint_obj.module.add_constraint(constraint_obj)
+
+      # Populate the "limited scope" view
+      
+
+
+  def get_module_by_name(self, name: str) -> typing.Union[VerilogModule, None]:
+    """
+    Retrieves a VerilogModule object from its name.
+
+    Args:
+        name (str): Name of the module to retrieve
+
+    Returns:
+        Union[VerilogModule, None]: The associated VerilogModule, or None if it
+            doesn't exist.
+    """
+    return self.modules.get(name)
+
       
 
 class VerilogModuleHierarchyModel():
 
-  def __init__(self, hierarchy):
+  def __init__(self, hierarchy: VerilogModuleHierarchy):
     self.hierarchy = hierarchy
 
   def index(self, row:int, column:int, parent:typing.Optional[QtCore.QModelIndex]=QtCore.QModelIndex()) -> QtCore.QModelIndex:
@@ -207,7 +257,7 @@ class VerilogModuleHierarchyModel():
     else:
       item = parent.internalPointer()
 
-    child = self.modules[item][row]
+    child = self.hierarchy.modules[row]
     if child:
         return self.createIndex(row, column, child)
     return QtCore.QModelIndex()
@@ -238,16 +288,15 @@ class VerilogModuleHierarchyModel():
 
   def columnCount(self, parent:typing.Optional[QtCore.QModelIndex]=QtCore.QModelIndex()) -> int:
     """Returns the number of columns for the children of the given parent."""
-    if parent.isValid():
-      return parent.internalPointer().columnCount()
-    else:
-      return self.root.columnCount()
+    return 2
 
   def data(self, index:QtCore.QModelIndex, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data stored under the given role for the item referred to by the index."""
     if index.isValid() and role == QtCore.Qt.DisplayRole:
       if index.column() == 0:
-        return index.internalPointer().
+        return index.internalPointer().name
+      else:
+        return index.internalPointer().path
       return index.internalPointer().data(index.column())
     elif not index.isValid():
       return "No Data (This is a bug)"

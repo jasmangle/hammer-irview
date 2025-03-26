@@ -2,6 +2,9 @@ import logging
 import sys
 
 from yaml import load, dump
+
+from irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy
+from irv.ui.hierarchical.yml_loader import HammerYaml
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -147,49 +150,58 @@ class MainWindow:
     # parse out the stuff
     modules = []
     self.designHierarchyModel = DesignHierarchyModel()
+    
+    self.ui.statusbar.showMessage(f"Parsing Verilog source files...")
+    self.verilog_module = VerilogModuleHierarchy()
+    self.verilog_module.register_modules_from_directory('/scratch/angle/ofot-chipyard/vlsi/generated-src/chipyard.harness.TestHarness.MyCoolSoCConfig/gen-collateral',
+                                                        self.ui.statusbar)
+    
 
     for path in yamls:
+      self.ui.statusbar.showMessage(f"Ready")
       data = {}
-      with open(path, 'r') as f:
-        data = load(f, Loader=Loader)
+      # with open(path, 'r') as f:
+      #   data = load(f, Loader=Loader)
       
-      vlsi_hier_inputs = data.get('vlsi.inputs.hierarchical', {})
-      modules = vlsi_hier_inputs.get('manual_modules')
-      toplevel_name = vlsi_hier_inputs.get('top_module')
-      module_insts = []
+      # vlsi_hier_inputs = data.get('vlsi.inputs.hierarchical', {})
+      # modules = vlsi_hier_inputs.get('manual_modules')
+      # toplevel_name = vlsi_hier_inputs.get('top_module')
+      # module_insts = []
 
-      # Load LEF files into the design hierarchy model
-      self.designHierarchyModel.load_lefs(
-        data.get('vlsi.technology.extra_libraries', {}))
+      yml = HammerYaml(path)
+      self.verilog_module.register_constraints_in_yml(yml, self.ui.statusbar)
+      # # Load LEF files into the design hierarchy model
+      # self.designHierarchyModel.load_lefs(
+      #   data.get('vlsi.technology.extra_libraries', {}))
 
-      queue = [(modules, None)]
-      while queue:
-        cur, parent = queue.pop()
-        module = None
+      # queue = [(modules, None)]
+      # while queue:
+      #   cur, parent = queue.pop()
+      #   module = None
 
-        if isinstance(cur, dict):
-          for name, submodules in cur.items():
-            module = DesignHierarchyModule(name, parent)
-            queue.append((submodules, module))
-        elif isinstance(cur, list):
-          for el in cur:
-            queue.append((el, parent))
-        elif isinstance(cur, str):
-          module = DesignHierarchyModule(cur, parent)
+      #   if isinstance(cur, dict):
+      #     for name, submodules in cur.items():
+      #       module = DesignHierarchyModule(name, parent)
+      #       queue.append((submodules, module))
+      #   elif isinstance(cur, list):
+      #     for el in cur:
+      #       queue.append((el, parent))
+      #   elif isinstance(cur, str):
+      #     module = DesignHierarchyModule(cur, parent)
 
-        if module and self.designHierarchyModel.get_module_by_path(module.path):
-          LOGGER.debug(f"Found duplicate module {module}, skipping...")
-        elif module:
-          self.designHierarchyModel.add_module(module, parent)
-          module_insts.append(module)
+      #   if module and self.designHierarchyModel.get_module_by_path(module.path):
+      #     LOGGER.debug(f"Found duplicate module {module}, skipping...")
+      #   elif module:
+      #     self.designHierarchyModel.add_module(module, parent)
+      #     module_insts.append(module)
 
       
-      #self.designHierarchyModel.set_toplevel_module(
-      #  self.designHierarchyModel.get_module_by_path(toplevel_name))
+      # #self.designHierarchyModel.set_toplevel_module(
+      # #  self.designHierarchyModel.get_module_by_path(toplevel_name))
       
-      # Load placement constraints
-      vlsi_constraints = vlsi_hier_inputs.get('constraints')
-      self.designHierarchyModel.parse_vlsi_constraints(vlsi_constraints or [])
+      # # Load placement constraints
+      # vlsi_constraints = vlsi_hier_inputs.get('constraints')
+      # self.designHierarchyModel.parse_vlsi_constraints(vlsi_constraints or [])
           
-      self._update_design_hierarchy_model()
+      # self._update_design_hierarchy_model()
 
