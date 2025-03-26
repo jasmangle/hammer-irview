@@ -1,0 +1,7 @@
+# General
+.vscode
+
+# Python
+**/__pycache__
+lefdef.egg-info
+dist
