@@ -3,8 +3,9 @@ import sys
 
 from yaml import load, dump
 
-from irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy
+from irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
 from irv.ui.hierarchical.yml_loader import HammerYaml
+from irv.ui.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -37,6 +38,8 @@ class MainWindow:
     if not self.ui:
         LOGGER.error(f"UIC: No window loaded from '{path}': {loader.errorString()}")
         sys.exit(-1)
+
+    self.statusbar_logger = StatusBarLogger(self.ui.statusbar)
 
     # Initialize ParameterTree
     # size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
@@ -149,12 +152,12 @@ class MainWindow:
   def load_yamls(self, yamls: list[str]):
     # parse out the stuff
     modules = []
-    self.designHierarchyModel = DesignHierarchyModel()
     
     self.ui.statusbar.showMessage(f"Parsing Verilog source files...")
-    self.verilog_module = VerilogModuleHierarchy()
-    self.verilog_module.register_modules_from_directory('/scratch/angle/ofot-chipyard/vlsi/generated-src/chipyard.harness.TestHarness.MyCoolSoCConfig/gen-collateral',
-                                                        self.ui.statusbar)
+    self.vhierarchy = VerilogModuleHierarchy()
+    self.designHierarchyModel = VerilogModuleHierarchyScopedModel(self.vhierarchy)
+    self.vhierarchy.register_modules_from_directory('/scratch/angle/ofot-chipyard/vlsi/generated-src/chipyard.harness.TestHarness.MyCoolSoCConfig/gen-collateral',
+                                                        self.statusbar_logger)
     
 
     for path in yamls:
@@ -169,7 +172,7 @@ class MainWindow:
       # module_insts = []
 
       yml = HammerYaml(path)
-      self.verilog_module.register_constraints_in_yml(yml, self.ui.statusbar)
+      self.vhierarchy.register_constraints_in_yml(yml, self.statusbar_logger)
       # # Load LEF files into the design hierarchy model
       # self.designHierarchyModel.load_lefs(
       #   data.get('vlsi.technology.extra_libraries', {}))
@@ -203,5 +206,11 @@ class MainWindow:
       # vlsi_constraints = vlsi_hier_inputs.get('constraints')
       # self.designHierarchyModel.parse_vlsi_constraints(vlsi_constraints or [])
           
-      # self._update_design_hierarchy_model()
+      # Populate the "limited scope" view
+      toplevel_name = yml.get_value('vlsi.inputs.top_module')
+      if toplevel_name:
+        toplevel_module = self.vhierarchy.get_module_by_name(toplevel_name)
+        self.vhierarchy.set_top_level_module(toplevel_module)
+
+    self._update_design_hierarchy_model()
 

@@ -51,7 +51,7 @@ class VerilogModule:
     if isinstance(constraint, ModuleTopLevel):
       self.top_constraint = constraint
     if isinstance(constraint, ModuleHierarchical):
-      self.children.append()
+      self.children.append(constraint)
 
   def __str__(self):
     return f'<{self.name} from {self.file}>'
@@ -101,6 +101,7 @@ class VerilogModuleHierarchy:
     # Modules of the form: {name: VerilogModule, ...}
     self.modules = OrderedDict()
     self.scoped_hierarchy = OrderedDict()
+    self.top_level = None
 
   def iter_files_in_path(self, directory: Path):
     """
@@ -123,7 +124,10 @@ class VerilogModuleHierarchy:
     content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
     content = re.sub(r'//.*', '', content)
     return content
-
+  
+  def set_top_level_module(self, module):
+    self.top_level = module
+    ## TODO: Ideally, signal that the view needs to change from the root.
 
   def parse_verilog_file(self, file: Path) -> list[tuple[VerilogModule, str]]:
     """
@@ -170,7 +174,6 @@ class VerilogModuleHierarchy:
     """
     vmodule, module_body = module
     insts = re.findall(self.RE_MODULE_INSTANTIATION, module_body)
-    LOGGER.debug(f'Found {len(insts)} instances in module {vmodule.name}')
 
     instances = {}
     for instance in insts:
@@ -223,9 +226,9 @@ class VerilogModuleHierarchy:
       statusbar.showMessage(f'[{yml.yml_file}] Deserializing placement constraint {i+1} of {num_constraints}')
       constraint_obj = PlacementConstraintManager.deserialize(constraint, self)
       constraint_obj.module.add_constraint(constraint_obj)
+    # if 
 
-      # Populate the "limited scope" view
-      
+    # if constraint_obj.module.add_constr
 
 
   def get_module_by_name(self, name: str) -> typing.Union[VerilogModule, None]:
@@ -240,12 +243,13 @@ class VerilogModuleHierarchy:
             doesn't exist.
     """
     return self.modules.get(name)
+  
+class VerilogModuleHierarchyScopedModel(QtCore.QAbstractItemModel):
 
-      
-
-class VerilogModuleHierarchyModel():
+  # Internal Pointer managed as VerilogModule objects.
 
   def __init__(self, hierarchy: VerilogModuleHierarchy):
+    super().__init__()
     self.hierarchy = hierarchy
 
   def index(self, row:int, column:int, parent:typing.Optional[QtCore.QModelIndex]=QtCore.QModelIndex()) -> QtCore.QModelIndex:
@@ -253,11 +257,11 @@ class VerilogModuleHierarchyModel():
     if not self.hasIndex(row, column, parent):
       return QtCore.QModelIndex()
     if not parent.isValid():
-      item = None
+      child = self.hierarchy.top_level
     else:
-      item = parent.internalPointer()
+      parent_module = parent.internalPointer()
+      child = parent_module.children[row]
 
-    child = self.hierarchy.modules[row]
     if child:
         return self.createIndex(row, column, child)
     return QtCore.QModelIndex()
@@ -270,7 +274,7 @@ class VerilogModuleHierarchyModel():
     if not item:
       return QtCore.QModelIndex()
 
-    parent = item.parent
+    parent = None
     if parent == None:
       return QtCore.QModelIndex()
     else:
@@ -281,10 +285,11 @@ class VerilogModuleHierarchyModel():
     if parent.row() > 0:
       return 0
     if parent.isValid():
-      item = parent.internalPointer()
+      parent_module = parent.internalPointer()
+      return len(parent_module.children)
     else:
-      item = None
-    return len(self.modules[item])
+      return 1 if self.hierarchy.top_level else 0
+    
 
   def columnCount(self, parent:typing.Optional[QtCore.QModelIndex]=QtCore.QModelIndex()) -> int:
     """Returns the number of columns for the children of the given parent."""
@@ -296,15 +301,14 @@ class VerilogModuleHierarchyModel():
       if index.column() == 0:
         return index.internalPointer().name
       else:
-        return index.internalPointer().path
-      return index.internalPointer().data(index.column())
+        return index.internalPointer().file
     elif not index.isValid():
       return "No Data (This is a bug)"
 
-  def headerData(self, section:int, orientation:QtCore.Qt.Orientation, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
+  def headerData(self, column:int, orientation:QtCore.Qt.Orientation, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data for the given role and section in the header with the specified orientation."""
-    if orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
-      if self.toplevel:
-        return f"Top Level: {self.toplevel.name}"
+    if column == 0 and orientation == QtCore.Qt.Horizontal and role == QtCore.Qt.DisplayRole:
+      if self.hierarchy.top_level:
+        return f"Top Level: {self.hierarchy.top_level.name}"
       else:
         return "No Design Loaded"

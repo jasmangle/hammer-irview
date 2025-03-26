@@ -67,7 +67,7 @@ class HammerYaml:
           current_dict[part] = {}
         current_dict = current_dict[part]
       else:
-        return current_dict[part]
+        return current_dict.get(part)
 
 
   def flatten_data(self, data: Union[dict, list]):
