@@ -5,6 +5,8 @@ from yaml import load, dump
 
 from irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
 from irv.ui.hierarchical.yml_loader import HammerYaml
+from irv.ui.widgets.loading_modal import LoadingDialog
+from irv.ui.widgets.overlay import LoadingWidget
 from irv.ui.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
@@ -45,6 +47,9 @@ class MainWindow:
     # size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
     self.paramtree = ParameterTree(None, True)
     self.ui.dockProperties.setWidget(self.paramtree)
+
+    # Loading modal
+    self.loader_modal = LoadingWidget('Please wait...', self.ui)
 
     # Event handling
     self.ui.resizeEvent = self.handleResize
@@ -152,6 +157,7 @@ class MainWindow:
   def load_yamls(self, yamls: list[str]):
     # parse out the stuff
     modules = []
+    self.loader_modal.show()
     
     self.ui.statusbar.showMessage(f"Parsing Verilog source files...")
     self.vhierarchy = VerilogModuleHierarchy()
@@ -213,4 +219,5 @@ class MainWindow:
         self.vhierarchy.set_top_level_module(toplevel_module)
 
     self._update_design_hierarchy_model()
+    self.loader_modal.hide()
 

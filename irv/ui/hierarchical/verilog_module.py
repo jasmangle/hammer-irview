@@ -43,11 +43,16 @@ class VerilogModule:
 
     self.top_constraint = None
     self.children = []
-    self.constraints = []
+
+    self.constraints = OrderedDict()
+    self.constraints_list = []
+    self.constraints_indices = {}
 
   def add_constraint(self, constraint: ModuleConstraint):
     constraint.module = self
-    self.constraints.append(constraint)
+    self.constraints[constraint.path] = constraint
+    self.constraints_indices[constraint] = len(self.constraints_list)
+    self.constraints_list.append(constraint)
     if isinstance(constraint, ModuleTopLevel):
       self.top_constraint = constraint
     if isinstance(constraint, ModuleHierarchical):

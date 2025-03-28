@@ -48,7 +48,7 @@ class MplCanvas(FigureCanvasQTAgg):
     for a in self.artist_to_constraint.keys():
       a.remove()
     self.artist_to_constraint.clear()
-    for constraint in self.module.placement_constraints.values():
+    for constraint in self.module.constraints.values():
       artists = constraint.render(self.axes, (0, 0), under_hierarchy=False,
                                   render_hierarchy=self.render_hierarchy)
       self.constraint_to_artists[constraint] = artists
