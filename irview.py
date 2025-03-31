@@ -17,8 +17,8 @@ LOGGER = logging.getLogger(__name__)
 
 def invoke_irv(args):
   # Launches Qt event loop
-  logging.basicConfig(encoding='utf-8', level=logging.DEBUG,
-                      format='\033[93m%(asctime)s - %(levelname)s - %(message)s\033[0m')
+  logging.basicConfig(encoding='utf-8', level=logging.INFO,
+                      format="[{pathname:>20s}:{lineno:<4}]  {levelname:<7s}   {message}", style='{')
   
   matplotlib.use('Agg')
   app = IRVApp(args)

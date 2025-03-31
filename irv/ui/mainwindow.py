@@ -81,8 +81,8 @@ class MainWindow:
     self.ui.actionRenderHierarchical.checked = canvas.render_hierarchy
     canvas.render_module()
     self.select_artist(canvas, canvas.selected)
-    self.ui.moduleHierarchyTree.setModel(canvas.module.module_model)
-    self.ui.moduleHierarchyTree.setSelectionModel(canvas.module.module_model.selection_model)
+    self.ui.moduleHierarchyTree.setModel(canvas.module.view_model)
+    self.ui.moduleHierarchyTree.setSelectionModel(canvas.module.view_model.selection_model)
 
   def handleActionRenderHierarchical(self):
     canvas = self.ui.tabs.currentWidget()
@@ -127,7 +127,7 @@ class MainWindow:
   def select_artist(self, canvas, constraint):
     if constraint:
       canvas.selected = constraint
-      idx = canvas.module.module_model.indexFromConstraint(constraint)
+      idx = canvas.module.view_model.get_constraint_index(constraint)
       constraint.populate_params(self.paramtree)
       self.ui.moduleHierarchyTree.setCurrentIndex(idx)
 
@@ -156,19 +156,27 @@ class MainWindow:
 
   def load_yamls(self, yamls: list[str]):
     # parse out the stuff
-    modules = []
     self.loader_modal.show()
-    
-    self.ui.statusbar.showMessage(f"Parsing Verilog source files...")
     self.vhierarchy = VerilogModuleHierarchy()
+
+    self.ui.statusbar.showMessage(f'Loading HAMMER specifications...')
+
+    parsed_yamls = []
+    for path in yamls:
+      parsed_yaml = HammerYaml(path)
+      parsed_yamls.append(parsed_yaml)
+      self.vhierarchy.register_macros_from_yml(parsed_yaml)
+
+    
+    self.ui.statusbar.showMessage(f"Parsing Verilog hierarchy...")
     self.designHierarchyModel = VerilogModuleHierarchyScopedModel(self.vhierarchy)
     self.vhierarchy.register_modules_from_directory('/scratch/angle/ofot-chipyard/vlsi/generated-src/chipyard.harness.TestHarness.MyCoolSoCConfig/gen-collateral',
                                                         self.statusbar_logger)
     
 
-    for path in yamls:
+    for parsed_yaml in parsed_yamls:
       self.ui.statusbar.showMessage(f"Ready")
-      data = {}
+
       # with open(path, 'r') as f:
       #   data = load(f, Loader=Loader)
       
@@ -177,8 +185,9 @@ class MainWindow:
       # toplevel_name = vlsi_hier_inputs.get('top_module')
       # module_insts = []
 
-      yml = HammerYaml(path)
-      self.vhierarchy.register_constraints_in_yml(yml, self.statusbar_logger)
+      
+      self.vhierarchy.register_constraints_in_yml(
+        parsed_yaml, self.statusbar_logger)
       # # Load LEF files into the design hierarchy model
       # self.designHierarchyModel.load_lefs(
       #   data.get('vlsi.technology.extra_libraries', {}))
@@ -213,7 +222,7 @@ class MainWindow:
       # self.designHierarchyModel.parse_vlsi_constraints(vlsi_constraints or [])
           
       # Populate the "limited scope" view
-      toplevel_name = yml.get_value('vlsi.inputs.top_module')
+      toplevel_name = parsed_yaml.get_value('vlsi.inputs.top_module')
       if toplevel_name:
         toplevel_module = self.vhierarchy.get_module_by_name(toplevel_name)
         self.vhierarchy.set_top_level_module(toplevel_module)
