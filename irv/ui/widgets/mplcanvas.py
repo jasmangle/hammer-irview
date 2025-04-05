@@ -2,8 +2,8 @@ from collections import defaultdict
 import sys
 import matplotlib
 
-from irv.ui.models.hierarchy import DesignHierarchyModule
-from irv.ui.widgets.mplzoompan import ZoomPan
+from irview.irv.ui.models.hierarchy import DesignHierarchyModule
+from irview.irv.ui.widgets.mplzoompan import ZoomPan
 
 matplotlib.use('Qt5Agg')
 

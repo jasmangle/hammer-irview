@@ -23,7 +23,7 @@ class LoadingDialog(QDialog):
     self.svg_label = QSvgWidget(self)
     # self.svg_label.setAlign(Qt.AlignCenter)
     # self.svg_label(True)
-    self.svg_label.load('ui/loading.svg')
+    self.svg_label.load('irview/ui/loading.svg')
     #self.movie = QMovie("loading.gif")  # Replace with your GIF file path
     #self.gif_label.setMovie(self.movie)
     

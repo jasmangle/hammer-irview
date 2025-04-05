@@ -6,9 +6,11 @@ from pyqtgraph.parametertree import Parameter
 from PySide6.QtCore import SIGNAL
 
 if TYPE_CHECKING:
-  from irv.ui.hierarchical.verilog_module import *
+  from irview.irv.ui.hierarchical.verilog_module import *
 
-from irv.ui.pluginmgr import IRVBehavior
+from irview.irv.ui.pluginmgr import IRVBehavior
+
+from irview.irv.ui.hierarchical.lef import IRVMacro
 
 
 class ModuleConstraint:
@@ -261,22 +263,55 @@ class ModuleHardMacro(ModuleConstraint):
   COLOR_BORDER = 'rebeccapurple'
   COLOR_FILL = 'mediumpurple'
 
+  def __init__(self, yml, hierarchy):
+    constraint_params = dict(name='Macro', type='group', child_params=[
+      dict(name='LEF File', getter='path', type='str'),
+    ])
+    self.add_param_dict(constraint_params)
+    super().__init__(yml, hierarchy)
+
+    self.defined = False
+
+    # Get the reference to the LEF macro that this constraint depends on
+    self.master_module = hierarchy.get_module_by_path(self.path)
+    if isinstance(self.master_module, str):
+      self.master_module = hierarchy.macro_library.get_macro(self.master_module)
+
+    if not self.master_module:
+      print(f'Hard Macro placement constraint for {self.path} is not associated with a defined Verilog instance!')
+    print('Placement Constraint Master: ', self.master_module)
+    self.geometry = []
+
   def render(self, axes: Axes, relative_offset: tuple[int, int],
              under_hierarchy: bool, render_hierarchy: bool):
     coords = (relative_offset[0] + self.x, relative_offset[1] + self.y)
+    width = 0
+    height = 0
+    self.geometry.clear()
 
     if self.width and self.height:
-      self.geometry = Rectangle(coords, self.width, self.height,
+      width = self.width
+      height = self.height
+
+    if isinstance(self.master_module, IRVMacro):
+      width = self.master_module.macro.c_size_x
+      height = self.master_module.macro.c_size_x
+    print('size: ', width, height)
+
+    if width and height:
+      self.geometry.append(Rectangle(coords, width, height,
                                 edgecolor=self.COLOR_BORDER,
-                                facecolor=self.COLOR_FILL)
-    else:
-      # Propagate via LEF
-      self.geometry = Circle(coords, 3,
-                                edgecolor=self.COLOR_BORDER,
-                                facecolor=self.COLOR_FILL)
-    self.geometry.set_picker(True)
-    axes.add_artist(self.geometry)
-    return [self.geometry]
+                                facecolor=self.COLOR_FILL))
+
+    # Propagate via LEF
+    self.geometry.append(Circle(coords, 3,
+                              edgecolor=self.COLOR_BORDER,
+                              facecolor=self.COLOR_FILL))
+      
+    for geom in self.geometry:
+      geom.set_picker(True)
+      axes.add_artist(geom)
+    return self.geometry
 
 
 class PlacementConstraintManager:

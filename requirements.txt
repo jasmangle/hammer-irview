@@ -1,4 +1,18 @@
-pyside6
-pyqtgraph
-matplotlib
-pyyaml
+#pyside6
+# pyqtgraph
+# matplotlib
+# pyyaml
+# ./lefdef-python/
+# workconad up
+# ALSO REQUIRES libxcb AND xcb-util, xcb-util-cursor ON CONDA
+
+# INSTALL qt6-main WITH CONDA INSTALL INSTEAD!!
+
+# Final Steps:
+# conda install qt6-main
+# conda install conda-forge::pyside6
+# conda install libopengl
+# pip install irview/lefdef-python/
+# pip install hammer/
+# conda install matplotlib
+# conda install pyqtgraph

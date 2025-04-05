@@ -3,17 +3,18 @@
 from collections import OrderedDict, defaultdict
 import logging
 import typing
+from typing_extensions import Self
 from PySide6 import QtCore
 
-from irv.ui.models.module_hierarchy import ModuleHierarchyModel
-from irv.ui.models.placement_constraints import ModuleConstraint
-from irv.ui.pluginmgr import IRVBehavior
+from irview.irv.ui.models.module_hierarchy import ModuleHierarchyModel
+from irview.irv.ui.models.placement_constraints import ModuleConstraint
+from irview.irv.ui.pluginmgr import IRVBehavior
 
 LOGGER = logging.getLogger(__name__)
 
 class DesignHierarchyModule:
 
-  def __init__(self, name, parent: typing.Self,
+  def __init__(self, name, parent: Self,
                placement_constraints: dict[str, ModuleConstraint] = None):
     self.name = name
 

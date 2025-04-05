@@ -10,9 +10,10 @@ import typing
 
 from PySide6 import QtCore, QtWidgets
 
-from irv.ui.hierarchical.lef import IRVMacro, MacroLibrary
-from irv.ui.hierarchical.placement_constraints import ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
-from irv.ui.hierarchical.yml_loader import HammerYaml
+from hammer.hammer.vlsi.driver import HammerDriver
+from irview.irv.ui.hierarchical.lef import IRVMacro, MacroLibrary
+from irview.irv.ui.hierarchical.placement_constraints import ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
+from irview.irv.ui.hierarchical.yml_loader import HammerYaml
 
 LOGGER = logging.getLogger(__name__)
 
@@ -168,7 +169,6 @@ class VerilogModuleHierarchy:
     vmodule, module_body = module
     insts = re.findall(self.RE_MODULE_INSTANTIATION, module_body)
 
-    print(insts)
     for instance in insts:
       inst_module_name, inst_name = instance
       inst_obj = vmodule.instances.get(inst_name)
@@ -198,7 +198,40 @@ class VerilogModuleHierarchy:
 
     # full_instance_path = '/'.join([parent_path, inst_name]) if parent_path else inst_name
 
-  def register_modules_from_directory(self, directory: Path, statusbar: typing.Union[QtWidgets.QStatusBar, None]):
+  def register_modules_from_driver(self, driver: HammerDriver,
+                                      statusbar: QtWidgets.QStatusBar | None):
+    """
+    Registers all .sv files as IRView VerilogModule objects for the current
+    VerilogModuleHierarchy based on `synthesis.inputs.input_files`.
+
+    Args:
+        directory (Path): Path to .sv files.
+        statusbar (QStatusBar): Status bar to update with progress.
+    """
+    modules_found = []
+
+    files = driver.project_config.get('synthesis.inputs.input_files', [])
+    num_files = len(files)
+
+    # Parse modules as a flat structure
+    for i, vfile in enumerate(files):
+      vfile = Path(vfile)
+      statusbar.showMessage(f"Parsing synthesis module {i+1} of {num_files}: {vfile}")
+      # Update our registry with the found verilog files.
+      modules = self.parse_verilog_file(vfile)
+      for module in modules:
+        vmodule_obj, module_body = module
+        self.modules[vmodule_obj.name] = vmodule_obj
+        modules_found.append(module)
+
+    # All modules loaded from all files. Parse instance hierarchy
+    for module_tpl in modules_found:
+      vmodule_obj, module_body = module_tpl
+      statusbar.showMessage(f"Reading instances for module '{vmodule_obj.name}'")
+      self.parse_module_instances(module_tpl)
+
+  def register_modules_from_directory(self, directory: Path,
+                                      statusbar: QtWidgets.QStatusBar | None):
     """
     Registers all .sv files as IRView VerilogModule objects for the current
     VerilogModuleHierarchy.
@@ -226,6 +259,25 @@ class VerilogModuleHierarchy:
       vmodule_obj, module_body = module_tpl
       statusbar.showMessage(f"Reading instances for module '{vmodule_obj.name}'")
       self.parse_module_instances(module_tpl)
+
+
+  def register_hammer_extra_libraries(self, driver: HammerDriver, statusbar):
+    libs = driver.project_config.get('vlsi.technology.extra_libraries', [])
+    num_libs = len(libs)
+    for i, lib in enumerate(libs):
+      lib = lib.get('library', {})
+      lef_path = lib.get('lef_file', None)
+      if lef_path:
+        lef_path = Path(driver.obj_dir, lef_path)
+        statusbar.showMessage(f'Loading extra library {i+1} of {num_libs}: {lef_path}')
+        self.macro_library.add_by_path(lef_path)
+
+  def register_hammer_tech_libraries(self, driver: HammerDriver, statusbar):
+    num_libs = len(driver.tech.tech_defined_libraries)
+    for i, lib in enumerate(driver.tech.tech_defined_libraries):
+      statusbar.showMessage(f'Lazily loading technology library {i+1} of {num_libs}: {lib.name}')
+      if lib.lef_file:
+        self.macro_library.add_lazy_by_path(lib.name, lib.lef_file)
 
   def register_macros_from_yml(self, yml: HammerYaml):
     """
@@ -255,18 +307,18 @@ class VerilogModuleHierarchy:
     for path in all_paths:
       self.macro_library.add_by_path(path)
 
-  def register_constraints_in_yml(self, yml: HammerYaml, statusbar: QtWidgets.QStatusBar | None):
+  def register_constraints_in_driver(self, driver: HammerDriver, statusbar: QtWidgets.QStatusBar | None):
     """
     Registers all constraints from a provided HAMMER YML file.
 
     Args:
-        yml_file (HammerYaml): HammerYaml pre-parsed YAML object.
+        driver (HammerDriver): Hammer driver.
     """
     
-    constraints = yml.get_value('vlsi.inputs.placement_constraints')
+    constraints = driver.project_config.get('vlsi.inputs.placement_constraints', [])
     num_constraints = len(constraints)
     for i, constraint in enumerate(constraints):
-      statusbar.showMessage(f'[{yml.yml_file}] Deserializing placement constraint {i+1} of {num_constraints}')
+      statusbar.showMessage(f'Deserializing placement constraint {i+1} of {num_constraints}')
       constraint_obj = PlacementConstraintManager.deserialize(constraint, self)
       constraint_obj.module.add_constraint(constraint_obj)
     # if 
@@ -286,6 +338,23 @@ class VerilogModuleHierarchy:
             doesn't exist.
     """
     return self.modules.get(name)
+  
+  def get_module_by_path(self, path):
+    segments = path.split('/')
+    current = self.get_module_by_name(segments[0])
+    for segment in segments[1:]:
+      if isinstance(current, VerilogModule):
+        inst = current.instances.get(segment)
+        if isinstance(inst, VerilogModuleInstance):
+          current = inst.module
+        else:
+          current = inst
+      elif isinstance(current, IRVMacro) or isinstance(current, str):
+        return current
+      else:
+        return None
+    return current
+
   
 class VerilogModuleHierarchyScopedModel(QtCore.QAbstractItemModel):
 

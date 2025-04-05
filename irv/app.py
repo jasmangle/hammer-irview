@@ -2,16 +2,16 @@
 from threading import Thread
 from PySide6.QtWidgets import QApplication
 
-from irv.ui import MainWindow
+from irview.irv.ui import MainWindow
 
 
 class IRVApp(QApplication):
 
-  def __init__(self, args):
-    super().__init__(args)
+  def __init__(self, driver):
+    super().__init__([])
     self.main = MainWindow()  # 'global'
 
     # Load the yaml files provided
-    if len(args) > 1:
-      Thread(target=self.main.load_yamls, args=(args[1:],)).start()
+    if driver:
+      Thread(target=self.main.load_hammer_data, args=(driver,)).start()
       # self.main.load_yamls(args[1:])

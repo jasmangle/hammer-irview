@@ -1,8 +1,8 @@
 import logging
 import typing
 from PySide6 import QtCore
-from irv.ui.models.placement_constraints import ModuleConstraint
-from irv.ui.pluginmgr import IRVBehavior
+from irview.irv.ui.models.placement_constraints import ModuleConstraint
+from irview.irv.ui.pluginmgr import IRVBehavior
 
 LOGGER = logging.getLogger(__name__)
 

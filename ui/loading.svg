@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 300 300" shape-rendering="geometricPrecision" text-rendering="geometricPrecision">
+<meta>
+  Hi, this is Jasmine!
+</meta>
+
+<style>
+<!-- pain -->
+@keyframes hammer_anim {
+  0% {
+    transform: translate(150px, 150px) rotate(0deg);
+  }
+  28.571429% {
+    transform: translate(150px, 150px) rotate(-22.6deg);
+  }
+  42.857143% {
+    transform: translate(150px, 150px) rotate(0deg);
+  }
+  57.142857% {
+    transform: translate(150px, 150px) rotate(-4.6deg);
+  }
+  71.428571% {
+    transform: translate(150px, 150px) rotate(0deg);
+  }
+  100% {
+    transform: translate(150px, 150px) rotate(0deg);
+  }
+}
+#hammer {
+  animation: hammer_anim linear 700ms infinite normal forwards running;
+}
+</style>
+
+<g id="hammer" transform="translate(150, 150) rotate(0)">
+<path d="M9.972,2.508c.070197-.200504.006033-.423476-.16-.556l-.178-.129c-.624767-.412907-1.334169-.68047-2.076-.783-1.343-.178-3.054.189-4.718,2.093h-1.054c-.132843.000028-.260213.052919-.354.147L0.146,4.567c-.194525.195135-.194525.510865,0,.706L2.717,7.852c.093804.094042.221173.146894.354.146894s.260196-.052852.354-.146894l1.286-1.29c.093469-.093706.145972-.220648.146-.353v-.639l8.387,8.873c.086414.117264.219669.191014.364921.201965s.288059-.041984.391079-.144965L15.5,13c.188331-.188456.195808-.491485.017-.689L6.388,3.681c.747-.456,1.772-.839,3.112-.839.212283.000153.401522-.133758.472-.334Z" transform="scale(-16.781714,16.781732) translate(-7.823216,-7.824829)"/>
+</g>
+
+</svg>

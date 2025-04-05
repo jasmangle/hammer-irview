@@ -3,11 +3,12 @@ import sys
 
 from yaml import load, dump
 
-from irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
-from irv.ui.hierarchical.yml_loader import HammerYaml
-from irv.ui.widgets.loading_modal import LoadingDialog
-from irv.ui.widgets.overlay import LoadingWidget
-from irv.ui.widgets.statusbar_mgr import StatusBarLogger
+from hammer.hammer.vlsi.driver import HammerDriver
+from irview.irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
+from irview.irv.ui.hierarchical.yml_loader import HammerYaml
+from irview.irv.ui.widgets.loading_modal import LoadingDialog
+from irview.irv.ui.widgets.overlay import LoadingWidget
+from irview.irv.ui.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -19,14 +20,14 @@ from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex
 
 from pyqtgraph.parametertree import ParameterTree
 
-from irv.ui.widgets.mplcanvas import MplCanvas
-from irv.ui.models.hierarchy import DesignHierarchyModel, DesignHierarchyModule
+from irview.irv.ui.widgets.mplcanvas import MplCanvas
+from irview.irv.ui.models.hierarchy import DesignHierarchyModel, DesignHierarchyModule
 
 LOGGER = logging.getLogger(__name__)
 
 
 class MainWindow:
-  UI_PATH = 'ui/main.ui'
+  UI_PATH = 'irview/ui/main.ui'
 
   def _load_ui(self, path, parent):
     # Initialize uic for included UI file path
@@ -154,78 +155,34 @@ class MainWindow:
     self.ui.statusbar.showMessage(f"Module {module.name} loaded.")
     #canvas.render_module(module)
 
-  def load_yamls(self, yamls: list[str]):
+  def load_hammer_data(self, driver: HammerDriver):
     # parse out the stuff
     self.loader_modal.show()
     self.vhierarchy = VerilogModuleHierarchy()
 
-    self.ui.statusbar.showMessage(f'Loading HAMMER specifications...')
+    self.ui.statusbar.showMessage(f'Loading HAMMER libraries...')
 
-    parsed_yamls = []
-    for path in yamls:
-      parsed_yaml = HammerYaml(path)
-      parsed_yamls.append(parsed_yaml)
-      self.vhierarchy.register_macros_from_yml(parsed_yaml)
+    self.vhierarchy.register_hammer_tech_libraries(driver, self.ui.statusbar)
+    self.vhierarchy.register_hammer_extra_libraries(driver, self.ui.statusbar)
+    # parsed_yamls = []
+    # module_dirs = []
+    # for path in yamls:
+    #   parsed_yaml = HammerYaml(path)
+    #   parsed_yamls.append(parsed_yaml)
+      
+    #   #parsed_yaml.get_value('irview.')
+    print(self.vhierarchy.macro_library.macros)
 
     
     self.ui.statusbar.showMessage(f"Parsing Verilog hierarchy...")
     self.designHierarchyModel = VerilogModuleHierarchyScopedModel(self.vhierarchy)
-    self.vhierarchy.register_modules_from_directory('/scratch/angle/ofot-chipyard/vlsi/generated-src/chipyard.harness.TestHarness.MyCoolSoCConfig/gen-collateral',
-                                                        self.statusbar_logger)
-    
+    self.vhierarchy.register_modules_from_driver(driver, self.statusbar_logger)
+    self.vhierarchy.register_constraints_in_driver(driver, self.statusbar_logger)
 
-    for parsed_yaml in parsed_yamls:
-      self.ui.statusbar.showMessage(f"Ready")
-
-      # with open(path, 'r') as f:
-      #   data = load(f, Loader=Loader)
-      
-      # vlsi_hier_inputs = data.get('vlsi.inputs.hierarchical', {})
-      # modules = vlsi_hier_inputs.get('manual_modules')
-      # toplevel_name = vlsi_hier_inputs.get('top_module')
-      # module_insts = []
-
-      
-      self.vhierarchy.register_constraints_in_yml(
-        parsed_yaml, self.statusbar_logger)
-      # # Load LEF files into the design hierarchy model
-      # self.designHierarchyModel.load_lefs(
-      #   data.get('vlsi.technology.extra_libraries', {}))
-
-      # queue = [(modules, None)]
-      # while queue:
-      #   cur, parent = queue.pop()
-      #   module = None
-
-      #   if isinstance(cur, dict):
-      #     for name, submodules in cur.items():
-      #       module = DesignHierarchyModule(name, parent)
-      #       queue.append((submodules, module))
-      #   elif isinstance(cur, list):
-      #     for el in cur:
-      #       queue.append((el, parent))
-      #   elif isinstance(cur, str):
-      #     module = DesignHierarchyModule(cur, parent)
-
-      #   if module and self.designHierarchyModel.get_module_by_path(module.path):
-      #     LOGGER.debug(f"Found duplicate module {module}, skipping...")
-      #   elif module:
-      #     self.designHierarchyModel.add_module(module, parent)
-      #     module_insts.append(module)
-
-      
-      # #self.designHierarchyModel.set_toplevel_module(
-      # #  self.designHierarchyModel.get_module_by_path(toplevel_name))
-      
-      # # Load placement constraints
-      # vlsi_constraints = vlsi_hier_inputs.get('constraints')
-      # self.designHierarchyModel.parse_vlsi_constraints(vlsi_constraints or [])
-          
-      # Populate the "limited scope" view
-      toplevel_name = parsed_yaml.get_value('vlsi.inputs.top_module')
-      if toplevel_name:
-        toplevel_module = self.vhierarchy.get_module_by_name(toplevel_name)
-        self.vhierarchy.set_top_level_module(toplevel_module)
+    toplevel_name = driver.project_config.get('vlsi.inputs.top_module')
+    if toplevel_name:
+      toplevel_module = self.vhierarchy.get_module_by_name(toplevel_name)
+      self.vhierarchy.set_top_level_module(toplevel_module)
 
     self._update_design_hierarchy_model()
     self.loader_modal.hide()

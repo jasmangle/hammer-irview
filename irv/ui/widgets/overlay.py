@@ -124,7 +124,7 @@ class LoadingWidget(OverlayWidget):
     overlay.setCursor(Qt.CursorShape.WaitCursor)
     overlay.setStyleSheet("border-radius: 5px; background-color: rgba(255, 255, 255 , 1);")
     
-    movie = QtGui.QMovie('ui/hammer.gif')
+    movie = QtGui.QMovie('irview/ui/hammer.gif')
     self.gif_label = QtWidgets.QLabel()
     self.gif_label.setMinimumSize(QtCore.QSize(50, 50))
     self.gif_label.setMaximumSize(QtCore.QSize(50, 50))

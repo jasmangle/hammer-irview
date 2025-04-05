@@ -1,5 +1,5 @@
 import logging
-from irv.ui.models.placement_constraints import ModuleHardMacro, ModuleHierarchical, ModuleObstruction, ModuleOverlap, ModuleTopLevel
+from irview.irv.ui.models.placement_constraints import ModuleHardMacro, ModuleHierarchical, ModuleObstruction, ModuleOverlap, ModuleTopLevel
 
 from lefdef import C_LefReader
 
