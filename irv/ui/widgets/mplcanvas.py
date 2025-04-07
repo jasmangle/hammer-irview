@@ -57,6 +57,10 @@ class MplCanvas(FigureCanvasQTAgg):
     self.needs_rerender = False
     self.draw()
 
+  def handle_resize(self):
+    for constraint in self.module.constraints.values():
+      constraint.draw_resize(self.axes)
+
 # Adds support for descend edit:
 #   queue = [(artists, constraint)]
 #   while queue:

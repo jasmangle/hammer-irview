@@ -111,6 +111,8 @@ class MainWindow:
         line_elems = ' '.split(line)
         # Example: name cc_dir_ext depth ## width ## ports ### mask_gran ##
 
+  def handleMplZoom(self, event):
+    event.canvas.handle_resize()
 
   def handleMplClick(self, event):
     artist = event.artist
@@ -150,6 +152,7 @@ class MainWindow:
     canvas = MplCanvas(None, module)
     canvas.mpl_connect('motion_notify_event', self.mouse_hover_statusbar_update)
     canvas.mpl_connect('pick_event', self.handleMplClick)
+    canvas.mpl_connect('resize_event', self.handleMplZoom)
     self.ui.tabs.setCurrentIndex(self.ui.tabs.addTab(canvas, module.name))
     self.ui.moduleHierarchyTree.selectionModel().selectionChanged.connect(self.handleConstraintHierarchyClick)
     self.ui.statusbar.showMessage(f"Module {module.name} loaded.")
