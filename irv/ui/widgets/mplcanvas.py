@@ -31,8 +31,8 @@ class MplCanvas(FigureCanvasQTAgg):
     self.axes.grid(True, linewidth=0.3)
     self.axes.set_aspect('equal')
     self.axes.axis('equal')
-    #self.axes.autoscale(enable=None, axis="x")
-    #self.axes.autoscale(enable=None, axis="y")
+    self.axes.autoscale(enable=None, axis="x")
+    self.axes.autoscale(enable=None, axis="y")
     self.axes.axvline(x=0, c="dimgray", label="x=0")
     self.axes.axhline(y=0, c="dimgray", label="y=0")
 

@@ -1,3 +1,4 @@
+import enum
 from typing import *
 
 from matplotlib.axes import Axes
@@ -12,6 +13,10 @@ if TYPE_CHECKING:
 from irview.irv.ui.pluginmgr import IRVBehavior
 
 from irview.irv.ui.hierarchical.lef import IRVMacro
+
+
+class IRVAlignCheck(enum.Enum):
+  ALIGNED = 0
 
 
 class ModuleConstraint:
@@ -81,6 +86,10 @@ class ModuleConstraint:
         
       param.sigStateChanged.connect(self.param_state_changed)
       parent.addChild(param)
+
+  @property
+  def is_grid_aligned(self):
+    return False
 
   def get_param_margins(self, yml, name):
     return yml.get('margins', {}).get(name.lower(), 0)

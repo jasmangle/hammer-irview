@@ -8,11 +8,11 @@ from pathlib import Path
 import re
 import typing
 
-from PySide6 import QtCore, QtWidgets
+from PySide6 import QtCore, QtWidgets, QtGui
 
 from hammer.hammer.vlsi.driver import HammerDriver
 from irview.irv.ui.hierarchical.lef import IRVMacro, MacroLibrary
-from irview.irv.ui.hierarchical.placement_constraints import ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
+from irview.irv.ui.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
 from irview.irv.ui.hierarchical.yml_loader import HammerYaml
 
 LOGGER = logging.getLogger(__name__)
@@ -436,6 +436,9 @@ class VerilogModuleConstraintsModel(QtCore.QAbstractItemModel):
     self.module = module
     self.selection_model = QtCore.QItemSelectionModel(self)
     self.descend_edit = False
+    self.icon_aligned = QtGui.QIcon("irview/ui/icon-aligned.jpg")
+    self.icon_misaligned = QtGui.QIcon("irview/ui/icon-misaligned.png")
+
 
   ### --- Custom --- ###
 
@@ -504,13 +507,24 @@ class VerilogModuleConstraintsModel(QtCore.QAbstractItemModel):
 
   def data(self, index:QtCore.QModelIndex, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data stored under the given role for the item referred to by the index."""
-    if index.isValid() and role == QtCore.Qt.DisplayRole:
+    if not index.isValid():
+      return 'No Data (This is a bug)'
+    if role == QtCore.Qt.ItemDataRole.DisplayRole:
       if index.column() == 0:
         return index.internalPointer().path
       else:
         return index.internalPointer().type
-    elif not index.isValid():
-      return "No Data (This is a bug)"
+    elif role == QtCore.Qt.ItemDataRole.DecorationRole and index.column() == 0:
+      aligned = index.internalPointer().is_grid_aligned
+      if aligned == IRVAlignCheck.ALIGNED:
+        return self.icon_aligned
+      else:
+        return self.icon_misaligned
+    elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
+      if index.internalPointer().is_grid_aligned:
+        return 'Grid alignment check passed.'
+      else:
+        return 'Grid alignment check failed.'
 
   def headerData(self, section:int, orientation:QtCore.Qt.Orientation, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data for the given role and section in the header with the specified orientation."""
