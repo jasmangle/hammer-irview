@@ -16,7 +16,7 @@ except ImportError:
 
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog
-from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex
+from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex, Qt
 
 from pyqtgraph.parametertree import ParameterTree
 
@@ -56,11 +56,16 @@ class MainWindow:
     self.ui.resizeEvent = self.handleResize
     self.ui.designHierarchyTree.doubleClicked.connect(self.handleDesignHierarchyDoubleClick)
     self.ui.actionOpenSram.triggered.connect(self.handleActionLoadSramCompiler)
+    self.ui.actionViewZoomToFit.triggered.connect(self.action_zoom_to_fit)
     self.ui.actionRenderHierarchical.triggered.connect(self.handleActionRenderHierarchical)
     self.ui.tabs.currentChanged.connect(self.handleChangeTab)
 
     #self.designHierarchyModel = DesignHierarchyModel()
     #self._update_design_hierarchy_model()
+
+  def action_zoom_to_fit(self):
+    print('zoom to fit init called')
+    self.ui.tabs.currentWidget().zoom_to_fit()
 
   def _update_design_hierarchy_model(self):
     self.ui.designHierarchyTree.setModel(self.designHierarchyModel)
@@ -150,6 +155,7 @@ class MainWindow:
       
     # Open new tab
     canvas = MplCanvas(None, module)
+    canvas.zoom_to_fit()
     canvas.mpl_connect('motion_notify_event', self.mouse_hover_statusbar_update)
     canvas.mpl_connect('pick_event', self.handleMplClick)
     canvas.mpl_connect('resize_event', self.handleMplZoom)
@@ -189,4 +195,6 @@ class MainWindow:
 
     self._update_design_hierarchy_model()
     self.loader_modal.hide()
+
+    self.ui.statusbar.showMessage(f'Ready.')
 

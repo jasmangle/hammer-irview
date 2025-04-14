@@ -31,8 +31,8 @@ class MplCanvas(FigureCanvasQTAgg):
     self.axes.grid(True, linewidth=0.3)
     self.axes.set_aspect('equal')
     self.axes.axis('equal')
-    self.axes.autoscale(enable=None, axis="x")
-    self.axes.autoscale(enable=None, axis="y")
+    #self.axes.autoscale(enable=None, axis="x")
+    #self.axes.autoscale(enable=None, axis="y")
     self.axes.axvline(x=0, c="dimgray", label="x=0")
     self.axes.axhline(y=0, c="dimgray", label="y=0")
 
@@ -40,7 +40,17 @@ class MplCanvas(FigureCanvasQTAgg):
     self.zoompan = ZoomPan()
     self.zoompan.pan_factory(self.axes)
     self.zoompan.zoom_factory(self.axes)
-    
+  
+  def zoom_to_fit(self):
+    x, y = self.module.top_constraint.x, self.module.top_constraint.y
+    width, height = self.module.top_constraint.width, self.module.top_constraint.height
+    print(self.module.top_constraint.__dict__)
+    horiz_pad = width / 10
+    vert_pad = height / 10
+    print('zoom to fit', x - horiz_pad, x + width + horiz_pad, y - vert_pad, y + height + vert_pad)
+    self.axes.set_ylim([y - vert_pad, y + height + vert_pad])
+    self.axes.set_xlim([x - horiz_pad, x + width + horiz_pad])
+    self.draw()
     
   def render_module(self):
     # Render module placement constraints
