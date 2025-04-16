@@ -198,6 +198,17 @@ class VerilogModuleHierarchy:
 
     # full_instance_path = '/'.join([parent_path, inst_name]) if parent_path else inst_name
 
+  def register_irv_settings(self, driver: HammerDriver):
+    """
+    Registers all IRV-namespaced settings relevant to verilog module parsing.
+    This also pulls in 
+
+    Args:
+        driver (HammerDriver): Associated Hammer driver
+    """
+    pass
+    #driver.database.get_config('irv.')
+
   def register_modules_from_driver(self, driver: HammerDriver,
                                       statusbar: QtWidgets.QStatusBar | None):
     """
@@ -205,7 +216,7 @@ class VerilogModuleHierarchy:
     VerilogModuleHierarchy based on `synthesis.inputs.input_files`.
 
     Args:
-        directory (Path): Path to .sv files.
+        driver (HammerDriver): Associated Hammer driver
         statusbar (QStatusBar): Status bar to update with progress.
     """
     modules_found = []

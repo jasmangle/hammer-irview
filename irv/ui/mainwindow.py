@@ -168,21 +168,13 @@ class MainWindow:
     # parse out the stuff
     self.loader_modal.show()
     self.vhierarchy = VerilogModuleHierarchy()
+    self.vhierarchy.register_irv_settings(driver)
 
     self.ui.statusbar.showMessage(f'Loading HAMMER libraries...')
 
     self.vhierarchy.register_hammer_tech_libraries(driver, self.ui.statusbar)
     self.vhierarchy.register_hammer_extra_libraries(driver, self.ui.statusbar)
-    # parsed_yamls = []
-    # module_dirs = []
-    # for path in yamls:
-    #   parsed_yaml = HammerYaml(path)
-    #   parsed_yamls.append(parsed_yaml)
-      
-    #   #parsed_yaml.get_value('irview.')
-    print(self.vhierarchy.macro_library.macros)
 
-    
     self.ui.statusbar.showMessage(f"Parsing Verilog hierarchy...")
     self.designHierarchyModel = VerilogModuleHierarchyScopedModel(self.vhierarchy)
     self.vhierarchy.register_modules_from_driver(driver, self.statusbar_logger)
