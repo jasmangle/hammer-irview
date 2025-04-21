@@ -44,10 +44,8 @@ class MplCanvas(FigureCanvasQTAgg):
   def zoom_to_fit(self):
     x, y = self.module.top_constraint.x, self.module.top_constraint.y
     width, height = self.module.top_constraint.width, self.module.top_constraint.height
-    print(self.module.top_constraint.__dict__)
     horiz_pad = width / 10
     vert_pad = height / 10
-    print('zoom to fit', x - horiz_pad, x + width + horiz_pad, y - vert_pad, y + height + vert_pad)
     self.axes.set_ylim([y - vert_pad, y + height + vert_pad])
     self.axes.set_xlim([x - horiz_pad, x + width + horiz_pad])
     self.draw()

@@ -15,7 +15,7 @@ except ImportError:
     from yaml import Loader, Dumper
 
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QFileDialog
+from PySide6.QtWidgets import QFileDialog, QHeaderView
 from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex, Qt
 
 from pyqtgraph.parametertree import ParameterTree
@@ -47,6 +47,7 @@ class MainWindow:
     # Initialize ParameterTree
     # size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
     self.paramtree = ParameterTree(None, True)
+    self.paramtree.header().setSectionResizeMode(QHeaderView.Interactive)
     self.ui.dockProperties.setWidget(self.paramtree)
 
     # Loading modal

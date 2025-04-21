@@ -17,6 +17,8 @@ from irview.irv.ui.hierarchical.lef import IRVMacro
 
 class IRVAlignCheck(enum.Enum):
   ALIGNED = 0
+  UNKNOWN = 1
+  MISALIGNED = 2
 
 
 class ModuleConstraint:
@@ -38,6 +40,7 @@ class ModuleConstraint:
       dict(name='Dimensions', type='group', child_params=[
         dict(name='Width', type='float', getter='width'),
         dict(name='Height', type='float', getter='height'),
+        dict(name='Layers', type='checklist', getter=self.get_param_layers, limits=hierarchy.layers.values()),
       ]),
       dict(name='Margins', type='group', child_params=[
         dict(name='Left', type='float', getter=self.get_param_margins),
@@ -48,6 +51,8 @@ class ModuleConstraint:
     ]), end=False)
     
     module_name = yml.get('path').split('/', 1)[0]
+    self.hierarchy = hierarchy
+    self.misaligned_layers = None
     self.module = hierarchy.get_module_by_name(module_name)
     self.path = yml.get('path')
     self.type = yml.get('type')
@@ -87,12 +92,41 @@ class ModuleConstraint:
       param.sigStateChanged.connect(self.param_state_changed)
       parent.addChild(param)
 
+  def refresh_alignment(self):
+    self.misaligned_layers = []
+    self.hierarchy.driver.log.info(f'--- Refreshing alignment check for module constraint {self.path} (Parent Module {self.module.name}) ---')
+    for layer in self.hierarchy.layers.values():
+      aligned = layer.check_alignment(self.x, self.y, self.width, self.height)
+      self.hierarchy.driver.log.info(f'\tMetal {layer.name} ({layer.dir}): Alignment {"PASS" if aligned else "FAIL"} x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}')
+      if not aligned:
+        self.misaligned_layers.append(layer)
+
   @property
-  def is_grid_aligned(self):
-    return False
+  def is_grid_aligned(self) -> IRVAlignCheck:
+    """
+    Returns the status of grid alignment for the entire module.
+
+    Returns:
+        IRVAlignCheck: Status of the module's overall alignment.
+    """
+    if self.misaligned_layers is None:
+      self.refresh_alignment()
+
+      # Still undefined?
+      if self.misaligned_layers is None:
+        return IRVAlignCheck.UNKNOWN
+    
+    if len(self.misaligned_layers) > 0:
+      return IRVAlignCheck.MISALIGNED
+    else:
+      return IRVAlignCheck.ALIGNED
 
   def get_param_margins(self, yml, name):
     return yml.get('margins', {}).get(name.lower(), 0)
+  
+  def get_param_layers(self, yml, name):
+    layer_strs = yml.get('layers', [])
+    return [self.hierarchy.layers[layer_str] for layer_str in layer_strs]
   
   def add_param_dict(self, param_dict, end=True):
     if hasattr(self, 'constraint_params') and end:
@@ -335,6 +369,9 @@ class ModuleHardMacro(ModuleConstraint):
 
     if not self.master_module:
       print(f'Hard Macro placement constraint for {self.path} is not associated with a defined Verilog instance!')
+    else:
+      self.width = self.master_module.macro.c_size_x
+      self.height = self.master_module.macro.c_size_y
     print('Placement Constraint Master: ', self.master_module)
 
   def render(self, axes: Axes, relative_offset: tuple[int, int],
@@ -350,8 +387,7 @@ class ModuleHardMacro(ModuleConstraint):
 
     if isinstance(self.master_module, IRVMacro):
       width = self.master_module.macro.c_size_x
-      height = self.master_module.macro.c_size_x
-    print('size: ', width, height)
+      height = self.master_module.macro.c_size_y
 
     if width and height:
       self.geometry.append(Rectangle(coords, width, height,

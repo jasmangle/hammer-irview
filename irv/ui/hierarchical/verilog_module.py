@@ -2,7 +2,7 @@
 Contains all Verilog-adjacent information modeling classes.
 """
 from collections import OrderedDict, defaultdict
-import os
+from decimal import Decimal
 import logging
 from pathlib import Path
 import re
@@ -10,12 +10,44 @@ import typing
 
 from PySide6 import QtCore, QtWidgets, QtGui
 
+from hammer.hammer.tech.stackup import Metal, RoutingDirection, Stackup
 from hammer.hammer.vlsi.driver import HammerDriver
 from irview.irv.ui.hierarchical.lef import IRVMacro, MacroLibrary
 from irview.irv.ui.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
 from irview.irv.ui.hierarchical.yml_loader import HammerYaml
 
 LOGGER = logging.getLogger(__name__)
+
+
+class TechMetalLayer:
+
+  def __init__(self, metal: Metal):
+    self.metal = metal
+    self.dir = metal.direction
+    self.name = metal.name
+  
+  def check_alignment(self, x: Decimal, y: Decimal, width: Decimal, height: Decimal):
+    x = Decimal(x)
+    y = Decimal(y)
+    width = Decimal(width)
+    height = Decimal(height)
+    bb_xmax = x + width
+    bb_ymax = y + height
+    if self.dir == RoutingDirection.Horizontal:
+      return x % self.metal.pitch == 0.0 and bb_xmax % self.metal.pitch == 0.0
+    elif self.dir == RoutingDirection.Vertical:
+      return y % self.metal.pitch == 0.0 and bb_ymax % self.metal.pitch == 0.0
+
+  @staticmethod
+  def create_from_stackups(stackups: list[Stackup]):
+    layers = {}
+    for stackup in stackups:
+      for metal in stackup.metals:
+        layers[metal.name] = TechMetalLayer(metal)
+    return layers
+  
+  def __str__(self):
+    return self.name
 
 
 class VerilogModule:
@@ -95,6 +127,7 @@ class VerilogModuleHierarchy:
   def __init__(self):
 
     # Modules of the form: {name: VerilogModule, ...}
+    self.driver = None
     self.modules = OrderedDict()
     self.macro_library = MacroLibrary()
     self.scoped_hierarchy = OrderedDict()
@@ -219,6 +252,7 @@ class VerilogModuleHierarchy:
         driver (HammerDriver): Associated Hammer driver
         statusbar (QStatusBar): Status bar to update with progress.
     """
+    self.driver = driver
     modules_found = []
 
     files = driver.project_config.get('synthesis.inputs.input_files', [])
@@ -325,6 +359,10 @@ class VerilogModuleHierarchy:
     Args:
         driver (HammerDriver): Hammer driver.
     """
+
+    statusbar.showMessage(f'Converting stackup metal definitions for technology "{driver.tech.name}"')
+    self.layers = TechMetalLayer.create_from_stackups(driver.tech.config.stackups)
+
     
     constraints = driver.project_config.get('vlsi.inputs.placement_constraints', [])
     num_constraints = len(constraints)
@@ -450,6 +488,9 @@ class VerilogModuleConstraintsModel(QtCore.QAbstractItemModel):
     self.icon_aligned = QtGui.QIcon("irview/ui/icon-aligned.jpg")
     self.icon_misaligned = QtGui.QIcon("irview/ui/icon-misaligned.png")
 
+    for constraint in self.module.constraints_list:
+      constraint.refresh_alignment()
+
 
   ### --- Custom --- ###
 
@@ -520,22 +561,42 @@ class VerilogModuleConstraintsModel(QtCore.QAbstractItemModel):
     """Returns the data stored under the given role for the item referred to by the index."""
     if not index.isValid():
       return 'No Data (This is a bug)'
+    
+    constraint: ModuleConstraint = index.internalPointer()
     if role == QtCore.Qt.ItemDataRole.DisplayRole:
       if index.column() == 0:
-        return index.internalPointer().path
+        return constraint.path
       else:
-        return index.internalPointer().type
+        return constraint.type
     elif role == QtCore.Qt.ItemDataRole.DecorationRole and index.column() == 0:
-      aligned = index.internalPointer().is_grid_aligned
-      if aligned == IRVAlignCheck.ALIGNED:
-        return self.icon_aligned
-      else:
-        return self.icon_misaligned
+      if self.module.top_constraint == constraint:
+        return None
+      match constraint.is_grid_aligned:
+        case IRVAlignCheck.ALIGNED:
+          return self.icon_aligned
+        case IRVAlignCheck.MISALIGNED:
+          return self.icon_misaligned
+        case IRVAlignCheck.UNKNOWN:
+          return None
     elif role == QtCore.Qt.ItemDataRole.ToolTipRole:
-      if index.internalPointer().is_grid_aligned:
-        return 'Grid alignment check passed.'
-      else:
-        return 'Grid alignment check failed.'
+      text = []
+      match constraint.is_grid_aligned:
+        case IRVAlignCheck.ALIGNED:
+          text.append('Grid alignment check passed.')
+        case IRVAlignCheck.MISALIGNED:
+          text.append('Grid alignment check failed.')
+        case IRVAlignCheck.UNKNOWN:
+          text.append('Grid alignment was not checked for this constraint.')
+      
+      # Show stackup details
+      for layer in (constraint.misaligned_layers or []):
+        if layer.dir == RoutingDirection.Horizontal:
+          coord = f'x = {constraint.x}, width = {constraint.width}'
+        else:
+          coord = f'y = {constraint.y}, height = {constraint.height}'
+
+        text.append(f'{layer.name} ({layer.dir}): {coord}, pitch = {layer.metal.pitch}')
+      return '\n'.join(text)
 
   def headerData(self, section:int, orientation:QtCore.Qt.Orientation, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data for the given role and section in the header with the specified orientation."""
