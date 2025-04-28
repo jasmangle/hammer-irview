@@ -1,11 +1,13 @@
 import logging
-from irview.irv.ui.models.placement_constraints import ModuleHardMacro, ModuleHierarchical, ModuleObstruction, ModuleOverlap, ModuleTopLevel
+from importlib import resources
 
 from lefdef import C_LefReader
 
 LOGGER = logging.getLogger(__name__)
 
 class IRVBehavior:
+
+  UI_PATH = resources.path('hammer_irview', 'ui')
 
   LEF_READER = C_LefReader()
 
@@ -68,14 +70,6 @@ class IRVBehavior:
     'vlsi.inputs.placement_constraints': (parse_placement_constraints, retry_placement_constraint)
   }
 
-  PLACEMENT_CONSTRAINT_TYPES = {
-    'hierarchical': ModuleHierarchical,
-    'toplevel': ModuleTopLevel,
-    'obstruction': ModuleObstruction,
-    'hardmacro': ModuleHardMacro,
-    'overlap': ModuleOverlap,
-  }
+  PLACEMENT_CONSTRAINT_TYPES = {}
 
-  LEF_LOADERS = {
-
-  }
+  LEF_LOADERS = {}

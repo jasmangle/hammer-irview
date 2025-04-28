@@ -1,39 +1,38 @@
 import logging
 import sys
-
-from yaml import load, dump
+from importlib import resources
 
 from hammer.hammer.vlsi.driver import HammerDriver
-from irview.irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
-from irview.irv.ui.hierarchical.yml_loader import HammerYaml
-from irview.irv.ui.widgets.loading_modal import LoadingDialog
-from irview.irv.ui.widgets.overlay import LoadingWidget
-from irview.irv.ui.widgets.statusbar_mgr import StatusBarLogger
+from hammer_irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy
+from hammer_irview.irv.models.verilog_module import VerilogModuleHierarchyScopedModel
+from hammer_irview.irv.widgets.overlay import LoadingWidget
+from hammer_irview.irv.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
     from yaml import Loader, Dumper
 
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QFileDialog
-from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex
+from PySide6.QtWidgets import QFileDialog, QHeaderView
+from PySide6.QtCore import QFile, QFileInfo, QIODevice, QModelIndex
 
 from pyqtgraph.parametertree import ParameterTree
 
-from irview.irv.ui.widgets.mplcanvas import MplCanvas
-from irview.irv.ui.models.hierarchy import DesignHierarchyModel, DesignHierarchyModule
+from hammer_irview.irv.widgets.mplcanvas import MplCanvas
+from hammer_irview.irv.pluginmgr import IRVBehavior
 
 LOGGER = logging.getLogger(__name__)
 
 
 class MainWindow:
-  UI_PATH = 'irview/ui/main.ui'
+  UI_PATH = IRVBehavior.UI_PATH / 'main.ui'
 
   def _load_ui(self, path, parent):
     # Initialize uic for included UI file path
     ui_file = QFile(path)
     if not ui_file.open(QIODevice.ReadOnly):
-        LOGGER.error(f"UIC: Cannot open UI file at '{path}': {ui_file.errorString()}")
+        file_info = QFileInfo(ui_file)
+        LOGGER.error(f"UIC: Cannot open UI file at '{path}' ({file_info.absoluteFilePath()}): {ui_file.errorString()}")
         sys.exit(-1)
     loader = QUiLoader()
     self.ui = loader.load(ui_file, parent)
@@ -47,6 +46,7 @@ class MainWindow:
     # Initialize ParameterTree
     # size_policy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
     self.paramtree = ParameterTree(None, True)
+    self.paramtree.header().setSectionResizeMode(QHeaderView.Interactive)
     self.ui.dockProperties.setWidget(self.paramtree)
 
     # Loading modal
@@ -56,11 +56,17 @@ class MainWindow:
     self.ui.resizeEvent = self.handleResize
     self.ui.designHierarchyTree.doubleClicked.connect(self.handleDesignHierarchyDoubleClick)
     self.ui.actionOpenSram.triggered.connect(self.handleActionLoadSramCompiler)
+    self.ui.actionViewZoomToFit.triggered.connect(self.action_zoom_to_fit)
     self.ui.actionRenderHierarchical.triggered.connect(self.handleActionRenderHierarchical)
     self.ui.tabs.currentChanged.connect(self.handleChangeTab)
+    self.ui.tabs.tabCloseRequested.connect(self.handleCloseTab)
 
     #self.designHierarchyModel = DesignHierarchyModel()
     #self._update_design_hierarchy_model()
+
+  def action_zoom_to_fit(self):
+    print('zoom to fit init called')
+    self.ui.tabs.currentWidget().zoom_to_fit()
 
   def _update_design_hierarchy_model(self):
     self.ui.designHierarchyTree.setModel(self.designHierarchyModel)
@@ -79,11 +85,20 @@ class MainWindow:
 
   def handleChangeTab(self):
     canvas = self.ui.tabs.currentWidget()
-    self.ui.actionRenderHierarchical.checked = canvas.render_hierarchy
-    canvas.render_module()
-    self.select_artist(canvas, canvas.selected)
-    self.ui.moduleHierarchyTree.setModel(canvas.module.view_model)
-    self.ui.moduleHierarchyTree.setSelectionModel(canvas.module.view_model.selection_model)
+
+    view_model = None
+    if canvas:
+      view_model = canvas.module.view_model
+      canvas.render_module()
+      self.select_artist(canvas, canvas.selected)
+      self.ui.actionRenderHierarchical.checked = canvas.render_hierarchy
+      self.ui.moduleHierarchyTree.setSelectionModel(view_model.selection_model)
+
+    self.ui.moduleHierarchyTree.setModel(view_model)
+
+  def handleCloseTab(self, index):
+    self.ui.tabs.removeTab(index)
+
 
   def handleActionRenderHierarchical(self):
     canvas = self.ui.tabs.currentWidget()
@@ -111,6 +126,8 @@ class MainWindow:
         line_elems = ' '.split(line)
         # Example: name cc_dir_ext depth ## width ## ports ### mask_gran ##
 
+  def handleMplZoom(self, event):
+    event.canvas.handle_resize()
 
   def handleMplClick(self, event):
     artist = event.artist
@@ -127,7 +144,7 @@ class MainWindow:
 
   def select_artist(self, canvas, constraint):
     if constraint:
-      canvas.selected = constraint
+      canvas.select_constraint(constraint)
       idx = canvas.module.view_model.get_constraint_index(constraint)
       constraint.populate_params(self.paramtree)
       self.ui.moduleHierarchyTree.setCurrentIndex(idx)
@@ -144,12 +161,15 @@ class MainWindow:
     for tab_idx in range(self.ui.tabs.count()):
       if self.ui.tabs.widget(tab_idx).module == module:
         self.ui.tabs.setCurrentIndex(tab_idx)
+        self.ui.statusbar.showMessage(f"Changed editor context to {module.name}.")
         return
       
     # Open new tab
     canvas = MplCanvas(None, module)
+    canvas.zoom_to_fit()
     canvas.mpl_connect('motion_notify_event', self.mouse_hover_statusbar_update)
     canvas.mpl_connect('pick_event', self.handleMplClick)
+    canvas.mpl_connect('resize_event', self.handleMplZoom)
     self.ui.tabs.setCurrentIndex(self.ui.tabs.addTab(canvas, module.name))
     self.ui.moduleHierarchyTree.selectionModel().selectionChanged.connect(self.handleConstraintHierarchyClick)
     self.ui.statusbar.showMessage(f"Module {module.name} loaded.")
@@ -159,21 +179,13 @@ class MainWindow:
     # parse out the stuff
     self.loader_modal.show()
     self.vhierarchy = VerilogModuleHierarchy()
+    self.vhierarchy.register_irv_settings(driver)
 
     self.ui.statusbar.showMessage(f'Loading HAMMER libraries...')
 
     self.vhierarchy.register_hammer_tech_libraries(driver, self.ui.statusbar)
     self.vhierarchy.register_hammer_extra_libraries(driver, self.ui.statusbar)
-    # parsed_yamls = []
-    # module_dirs = []
-    # for path in yamls:
-    #   parsed_yaml = HammerYaml(path)
-    #   parsed_yamls.append(parsed_yaml)
-      
-    #   #parsed_yaml.get_value('irview.')
-    print(self.vhierarchy.macro_library.macros)
 
-    
     self.ui.statusbar.showMessage(f"Parsing Verilog hierarchy...")
     self.designHierarchyModel = VerilogModuleHierarchyScopedModel(self.vhierarchy)
     self.vhierarchy.register_modules_from_driver(driver, self.statusbar_logger)
@@ -186,4 +198,6 @@ class MainWindow:
 
     self._update_design_hierarchy_model()
     self.loader_modal.hide()
+
+    self.ui.statusbar.showMessage(f'Ready.')
 

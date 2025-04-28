@@ -1,9 +1,7 @@
 from collections import defaultdict
-import sys
 import matplotlib
 
-from irview.irv.ui.models.hierarchy import DesignHierarchyModule
-from irview.irv.ui.widgets.mplzoompan import ZoomPan
+from hammer_irview.irv.widgets.mplzoompan import ZoomPan
 
 matplotlib.use('Qt5Agg')
 
@@ -40,7 +38,15 @@ class MplCanvas(FigureCanvasQTAgg):
     self.zoompan = ZoomPan()
     self.zoompan.pan_factory(self.axes)
     self.zoompan.zoom_factory(self.axes)
-    
+  
+  def zoom_to_fit(self):
+    x, y = self.module.top_constraint.x, self.module.top_constraint.y
+    width, height = self.module.top_constraint.width, self.module.top_constraint.height
+    horiz_pad = width / 10
+    vert_pad = height / 10
+    self.axes.set_ylim([y - vert_pad, y + height + vert_pad])
+    self.axes.set_xlim([x - horiz_pad, x + width + horiz_pad])
+    self.draw()
     
   def render_module(self):
     # Render module placement constraints
@@ -56,6 +62,14 @@ class MplCanvas(FigureCanvasQTAgg):
         self.artist_to_constraint[artist] = constraint
     self.needs_rerender = False
     self.draw()
+
+  def select_constraint(self, constraint):
+    # TODO: Handle selection color change
+    self.selected = constraint
+
+  def handle_resize(self):
+    for constraint in self.module.constraints.values():
+      constraint.draw_resize(self.axes)
 
 # Adds support for descend edit:
 #   queue = [(artists, constraint)]

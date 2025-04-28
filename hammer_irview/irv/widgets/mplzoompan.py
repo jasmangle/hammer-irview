@@ -13,7 +13,7 @@ class ZoomPan:
     self.ypress = None
 
 
-  def zoom_factory(self, ax, base_scale = 1.5):
+  def zoom_factory(self, ax, base_scale = 1.2):
     def zoom(event):
       cur_xlim = ax.get_xlim()
       cur_ylim = ax.get_ylim()

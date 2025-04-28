@@ -2,6 +2,8 @@ import logging
 from PySide6 import QtCore, QtGui, QtWidgets
 from PySide6.QtCore import Qt
 
+from hammer_irview.irv.pluginmgr import IRVBehavior
+
 log = logging.getLogger(__name__)
 
 class OverlayWidget(QtWidgets.QWidget):
@@ -124,7 +126,7 @@ class LoadingWidget(OverlayWidget):
     overlay.setCursor(Qt.CursorShape.WaitCursor)
     overlay.setStyleSheet("border-radius: 5px; background-color: rgba(255, 255, 255 , 1);")
     
-    movie = QtGui.QMovie('irview/ui/hammer.gif')
+    movie = QtGui.QMovie(str(IRVBehavior.UI_PATH / 'hammer.gif'))
     self.gif_label = QtWidgets.QLabel()
     self.gif_label.setMinimumSize(QtCore.QSize(50, 50))
     self.gif_label.setMaximumSize(QtCore.QSize(50, 50))
