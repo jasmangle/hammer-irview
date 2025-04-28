@@ -2,7 +2,7 @@
 from threading import Thread
 from PySide6.QtWidgets import QApplication
 
-from irview.irv.ui import MainWindow
+from irview.irv.mainwindow import MainWindow
 
 
 class IRVApp(QApplication):

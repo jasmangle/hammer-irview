@@ -1,5 +1,6 @@
 import enum
 from typing import *
+from decimal import Decimal
 
 from matplotlib.axes import Axes
 from matplotlib.patches import Circle, Rectangle
@@ -8,11 +9,11 @@ from pyqtgraph.parametertree import Parameter
 from PySide6.QtCore import SIGNAL
 
 if TYPE_CHECKING:
-  from irview.irv.ui.hierarchical.verilog_module import *
+  from irview.irv.hierarchical.verilog_module import *
+  
+from irview.irv.pluginmgr import IRVBehavior
 
-from irview.irv.ui.pluginmgr import IRVBehavior
-
-from irview.irv.ui.hierarchical.lef import IRVMacro
+from irview.irv.hierarchical.lef import IRVMacro
 
 
 class IRVAlignCheck(enum.Enum):
@@ -52,7 +53,10 @@ class ModuleConstraint:
     
     module_name = yml.get('path').split('/', 1)[0]
     self.hierarchy = hierarchy
+
     self.misaligned_layers = None
+    self.misaligned_log = 'Alignment was not checked for this constraint.'
+
     self.module = hierarchy.get_module_by_name(module_name)
     self.path = yml.get('path')
     self.type = yml.get('type')
@@ -92,14 +96,45 @@ class ModuleConstraint:
       param.sigStateChanged.connect(self.param_state_changed)
       parent.addChild(param)
 
+  def rotate_coordinates(self, origin: Tuple[Decimal, Decimal], size: Tuple[Decimal, Decimal], orientation: str) -> Tuple[Decimal, Decimal]:
+    x,y = origin
+    width,height = size
+    if orientation == 'r0':
+      return (x,y)
+    elif orientation == 'r90':
+      return (x+height,y)
+    elif orientation == 'r180':
+      return (x+width,y+height)
+    elif orientation == 'r270':
+      return (x,y+width)
+    elif orientation == 'mx':
+      return (x,y+height)
+    elif orientation == 'my':
+      return (x+width,y)
+    elif orientation == 'mx90':
+      return (x,y)
+    elif orientation == 'my90':
+      return (x+height,y+width)
+    else:
+      self.logger.error(f"Invalid orientation {orientation}")
+      return (x,y)
+
   def refresh_alignment(self):
+    cmul_log = []
     self.misaligned_layers = []
-    self.hierarchy.driver.log.info(f'--- Refreshing alignment check for module constraint {self.path} (Parent Module {self.module.name}) ---')
+    
+    self.hierarchy.driver.log.info(f'--- Refreshing alignment check for module constraint "{self.path}" (Parent Module: "{self.module.name}") ---')
     for layer in self.hierarchy.layers.values():
       aligned = layer.check_alignment(self.x, self.y, self.width, self.height)
-      self.hierarchy.driver.log.info(f'\tMetal {layer.name} ({layer.dir}): Alignment {"PASS" if aligned else "FAIL"} x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}')
+
+      align_log = f'Metal {layer.name} ({layer.dir}, grid unit: {layer.metal.grid_unit}): Alignment {"PASS" if aligned else "FAIL"} x: {self.x}, y: {self.y}, width: {self.width}, height: {self.height}'
+      cmul_log.append(align_log)
+      self.hierarchy.driver.log.info('\t' + align_log)
+
       if not aligned:
         self.misaligned_layers.append(layer)
+        
+    self.misaligned_log = '\n'.join(cmul_log)
 
   @property
   def is_grid_aligned(self) -> IRVAlignCheck:
@@ -433,3 +468,11 @@ class PlacementConstraintManager:
     cls = PlacementConstraintManager.PLACEMENT_CONSTRAINT_TYPES.get(yml_type)
     return cls(yml, hierarchy)
     
+
+IRVBehavior.PLACEMENT_CONSTRAINT_TYPES.update({
+  'hierarchical': ModuleHierarchical,
+  'toplevel': ModuleTopLevel,
+  'obstruction': ModuleObstruction,
+  'hardmacro': ModuleHardMacro,
+  'overlap': ModuleOverlap,
+})

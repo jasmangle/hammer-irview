@@ -1,14 +1,11 @@
 import logging
 import sys
 
-from yaml import load, dump
-
 from hammer.hammer.vlsi.driver import HammerDriver
-from irview.irv.ui.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModuleHierarchyScopedModel
-from irview.irv.ui.hierarchical.yml_loader import HammerYaml
-from irview.irv.ui.widgets.loading_modal import LoadingDialog
-from irview.irv.ui.widgets.overlay import LoadingWidget
-from irview.irv.ui.widgets.statusbar_mgr import StatusBarLogger
+from irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy
+from irview.irv.models.verilog_module import VerilogModuleHierarchyScopedModel
+from irview.irv.widgets.overlay import LoadingWidget
+from irview.irv.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -16,12 +13,11 @@ except ImportError:
 
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog, QHeaderView
-from PySide6.QtCore import QFile, QIODevice, QRect, QModelIndex, Qt
+from PySide6.QtCore import QFile, QIODevice, QModelIndex
 
 from pyqtgraph.parametertree import ParameterTree
 
-from irview.irv.ui.widgets.mplcanvas import MplCanvas
-from irview.irv.ui.models.hierarchy import DesignHierarchyModel, DesignHierarchyModule
+from irview.irv.widgets.mplcanvas import MplCanvas
 
 LOGGER = logging.getLogger(__name__)
 
@@ -60,6 +56,7 @@ class MainWindow:
     self.ui.actionViewZoomToFit.triggered.connect(self.action_zoom_to_fit)
     self.ui.actionRenderHierarchical.triggered.connect(self.handleActionRenderHierarchical)
     self.ui.tabs.currentChanged.connect(self.handleChangeTab)
+    self.ui.tabs.tabCloseRequested.connect(self.handleCloseTab)
 
     #self.designHierarchyModel = DesignHierarchyModel()
     #self._update_design_hierarchy_model()
@@ -85,11 +82,20 @@ class MainWindow:
 
   def handleChangeTab(self):
     canvas = self.ui.tabs.currentWidget()
-    self.ui.actionRenderHierarchical.checked = canvas.render_hierarchy
-    canvas.render_module()
-    self.select_artist(canvas, canvas.selected)
-    self.ui.moduleHierarchyTree.setModel(canvas.module.view_model)
-    self.ui.moduleHierarchyTree.setSelectionModel(canvas.module.view_model.selection_model)
+
+    view_model = None
+    if canvas:
+      view_model = canvas.module.view_model
+      canvas.render_module()
+      self.select_artist(canvas, canvas.selected)
+      self.ui.actionRenderHierarchical.checked = canvas.render_hierarchy
+      self.ui.moduleHierarchyTree.setSelectionModel(view_model.selection_model)
+
+    self.ui.moduleHierarchyTree.setModel(view_model)
+
+  def handleCloseTab(self, index):
+    self.ui.tabs.removeTab(index)
+
 
   def handleActionRenderHierarchical(self):
     canvas = self.ui.tabs.currentWidget()
@@ -135,7 +141,7 @@ class MainWindow:
 
   def select_artist(self, canvas, constraint):
     if constraint:
-      canvas.selected = constraint
+      canvas.select_constraint(constraint)
       idx = canvas.module.view_model.get_constraint_index(constraint)
       constraint.populate_params(self.paramtree)
       self.ui.moduleHierarchyTree.setCurrentIndex(idx)
@@ -152,6 +158,7 @@ class MainWindow:
     for tab_idx in range(self.ui.tabs.count()):
       if self.ui.tabs.widget(tab_idx).module == module:
         self.ui.tabs.setCurrentIndex(tab_idx)
+        self.ui.statusbar.showMessage(f"Changed editor context to {module.name}.")
         return
       
     # Open new tab

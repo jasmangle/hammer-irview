@@ -1,9 +1,7 @@
 from collections import defaultdict
-import sys
 import matplotlib
 
-from irview.irv.ui.models.hierarchy import DesignHierarchyModule
-from irview.irv.ui.widgets.mplzoompan import ZoomPan
+from irview.irv.widgets.mplzoompan import ZoomPan
 
 matplotlib.use('Qt5Agg')
 
@@ -64,6 +62,10 @@ class MplCanvas(FigureCanvasQTAgg):
         self.artist_to_constraint[artist] = constraint
     self.needs_rerender = False
     self.draw()
+
+  def select_constraint(self, constraint):
+    # TODO: Handle selection color change
+    self.selected = constraint
 
   def handle_resize(self):
     for constraint in self.module.constraints.values():
