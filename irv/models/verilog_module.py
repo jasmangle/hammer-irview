@@ -69,15 +69,12 @@ class VerilogModuleHierarchyScopedModel(QtCore.QAbstractItemModel):
 
   def columnCount(self, parent:typing.Optional[QtCore.QModelIndex]=QtCore.QModelIndex()) -> int:
     """Returns the number of columns for the children of the given parent."""
-    return 2
+    return 1
 
   def data(self, index:QtCore.QModelIndex, role:typing.Optional[int]=QtCore.Qt.DisplayRole) -> typing.Any:
     """Returns the data stored under the given role for the item referred to by the index."""
     if index.isValid() and role == QtCore.Qt.DisplayRole:
-      if index.column() == 0:
-        return index.internalPointer().name
-      else:
-        return index.internalPointer().file
+      return index.internalPointer().name
     elif not index.isValid():
       return "No Data (This is a bug)"
 
