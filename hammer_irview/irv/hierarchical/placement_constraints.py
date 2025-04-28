@@ -9,11 +9,11 @@ from pyqtgraph.parametertree import Parameter
 from PySide6.QtCore import SIGNAL
 
 if TYPE_CHECKING:
-  from irview.irv.hierarchical.verilog_module import *
+  from hammer_irview.irv.hierarchical.verilog_module import *
   
-from irview.irv.pluginmgr import IRVBehavior
+from hammer_irview.irv.pluginmgr import IRVBehavior
 
-from irview.irv.hierarchical.lef import IRVMacro
+from hammer_irview.irv.hierarchical.lef import IRVMacro
 
 
 class IRVAlignCheck(enum.Enum):

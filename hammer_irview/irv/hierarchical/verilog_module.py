@@ -12,9 +12,9 @@ from PySide6 import QtCore, QtWidgets, QtGui
 
 from hammer.hammer.tech.stackup import Metal, RoutingDirection, Stackup
 from hammer.hammer.vlsi.driver import HammerDriver
-from irview.irv.hierarchical.lef import IRVMacro, MacroLibrary
-from irview.irv.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
-from irview.irv.models.verilog_module import VerilogModuleConstraintsModel
+from hammer_irview.irv.hierarchical.lef import IRVMacro, MacroLibrary
+from hammer_irview.irv.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical, ModuleTopLevel, PlacementConstraintManager
+from hammer_irview.irv.models.verilog_module import VerilogModuleConstraintsModel
 
 LOGGER = logging.getLogger(__name__)
 

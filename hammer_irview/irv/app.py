@@ -3,7 +3,7 @@ from threading import Thread
 from PySide6.QtWidgets import QApplication
 
 from hammer.hammer.vlsi.driver import HammerDriver
-from irview.irv.mainwindow import MainWindow
+from hammer_irview.irv.mainwindow import MainWindow
 
 
 class IRVApp(QApplication):

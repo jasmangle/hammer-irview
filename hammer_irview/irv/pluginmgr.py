@@ -1,10 +1,13 @@
 import logging
+from importlib import resources
 
 from lefdef import C_LefReader
 
 LOGGER = logging.getLogger(__name__)
 
 class IRVBehavior:
+
+  UI_PATH = resources.path('hammer_irview', 'ui')
 
   LEF_READER = C_LefReader()
 

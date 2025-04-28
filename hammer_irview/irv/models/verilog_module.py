@@ -9,12 +9,14 @@ import typing
 from PySide6 import QtCore, QtGui
 
 from hammer.hammer.tech.stackup import RoutingDirection
-from irview.irv.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical
+from hammer_irview.irv.hierarchical.placement_constraints import IRVAlignCheck, ModuleConstraint, ModuleHierarchical
 
 from typing import TYPE_CHECKING
 
+from hammer_irview.irv.pluginmgr import IRVBehavior
+
 if TYPE_CHECKING:
-  from irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModule
+  from hammer_irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy, VerilogModule
 
 LOGGER = logging.getLogger(__name__)
 
@@ -96,8 +98,8 @@ class VerilogModuleConstraintsModel(QtCore.QAbstractItemModel):
     self.module = module
     self.selection_model = QtCore.QItemSelectionModel(self)
     self.descend_edit = False
-    self.icon_aligned = QtGui.QIcon("irview/ui/icon-aligned.jpg")
-    self.icon_misaligned = QtGui.QIcon("irview/ui/icon-misaligned.png")
+    self.icon_aligned = QtGui.QIcon(str(IRVBehavior.UI_PATH / 'icon-aligned.jpg'))
+    self.icon_misaligned = QtGui.QIcon(str(IRVBehavior.UI_PATH / 'icon-misaligned.jpg'))
 
     for constraint in self.module.constraints_list:
       constraint.refresh_alignment()

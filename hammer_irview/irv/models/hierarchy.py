@@ -6,9 +6,9 @@ import typing
 from typing_extensions import Self
 from PySide6 import QtCore
 
-from irview.irv.models.module_hierarchy import ModuleHierarchyModel
-from irview.irv.models.placement_constraints import ModuleConstraint
-from irview.irv.pluginmgr import IRVBehavior
+from hammer_irview.irv.models.module_hierarchy import ModuleHierarchyModel
+from hammer_irview.irv.models.placement_constraints import ModuleConstraint
+from hammer_irview.irv.pluginmgr import IRVBehavior
 
 LOGGER = logging.getLogger(__name__)
 

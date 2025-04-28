@@ -1,7 +1,7 @@
 from collections import defaultdict
 import matplotlib
 
-from irview.irv.widgets.mplzoompan import ZoomPan
+from hammer_irview.irv.widgets.mplzoompan import ZoomPan
 
 matplotlib.use('Qt5Agg')
 

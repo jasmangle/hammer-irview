@@ -8,7 +8,7 @@ Created by Jasmine Angle - angle@berkeley.edu
 
 import sys
 import logging
-from irview.irv import IRVApp
+from hammer_irview.irv import IRVApp
 
 import matplotlib
 

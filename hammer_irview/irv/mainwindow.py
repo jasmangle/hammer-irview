@@ -1,11 +1,12 @@
 import logging
 import sys
+from importlib import resources
 
 from hammer.hammer.vlsi.driver import HammerDriver
-from irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy
-from irview.irv.models.verilog_module import VerilogModuleHierarchyScopedModel
-from irview.irv.widgets.overlay import LoadingWidget
-from irview.irv.widgets.statusbar_mgr import StatusBarLogger
+from hammer_irview.irv.hierarchical.verilog_module import VerilogModuleHierarchy
+from hammer_irview.irv.models.verilog_module import VerilogModuleHierarchyScopedModel
+from hammer_irview.irv.widgets.overlay import LoadingWidget
+from hammer_irview.irv.widgets.statusbar_mgr import StatusBarLogger
 try:
     from yaml import CLoader as Loader, CDumper as Dumper
 except ImportError:
@@ -13,23 +14,25 @@ except ImportError:
 
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog, QHeaderView
-from PySide6.QtCore import QFile, QIODevice, QModelIndex
+from PySide6.QtCore import QFile, QFileInfo, QIODevice, QModelIndex
 
 from pyqtgraph.parametertree import ParameterTree
 
-from irview.irv.widgets.mplcanvas import MplCanvas
+from hammer_irview.irv.widgets.mplcanvas import MplCanvas
+from hammer_irview.irv.pluginmgr import IRVBehavior
 
 LOGGER = logging.getLogger(__name__)
 
 
 class MainWindow:
-  UI_PATH = 'irview/ui/main.ui'
+  UI_PATH = IRVBehavior.UI_PATH / 'main.ui'
 
   def _load_ui(self, path, parent):
     # Initialize uic for included UI file path
     ui_file = QFile(path)
     if not ui_file.open(QIODevice.ReadOnly):
-        LOGGER.error(f"UIC: Cannot open UI file at '{path}': {ui_file.errorString()}")
+        file_info = QFileInfo(ui_file)
+        LOGGER.error(f"UIC: Cannot open UI file at '{path}' ({file_info.absoluteFilePath()}): {ui_file.errorString()}")
         sys.exit(-1)
     loader = QUiLoader()
     self.ui = loader.load(ui_file, parent)
